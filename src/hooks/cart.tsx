@@ -34,7 +34,7 @@ const CartProvider: React.FC = ({ children }) => {
         '@Marketplace:products',
       );
       if (storagedProducts) {
-        setProducts(JSON.parse(storagedProducts));
+        setProducts([...JSON.parse(storagedProducts)]);
       }
     }
 
@@ -43,43 +43,40 @@ const CartProvider: React.FC = ({ children }) => {
 
   const addToCart = useCallback(
     async (product: Product) => {
-      const productId = await products.findIndex(
-        mapProduct => mapProduct.id === product.id,
+      let newProducts: Product[] = [];
+      const productExist = await products.find(
+        mappedProduct => mappedProduct.id === product.id,
       );
-      if (productId === -1) {
-        const newProduct = product;
-        newProduct.quantity = 1;
-        const newProducts = [...products, newProduct];
-        setProducts([...newProducts]);
-
-        await AsyncStorage.setItem(
-          '@Marketplace:products',
-          JSON.stringify(newProducts),
+      if (productExist) {
+        newProducts = products.map(mappedProduct =>
+          mappedProduct.id === product.id
+            ? { ...product, quantity: mappedProduct.quantity + 1 }
+            : mappedProduct,
         );
       } else {
-        const newProducts = products;
-        newProducts[productId].quantity += 1;
-        setProducts([...newProducts]);
-        await AsyncStorage.setItem(
-          '@Marketplace:products',
-          JSON.stringify(newProducts),
-        );
+        newProducts = [...products, { ...product, quantity: 1 }];
       }
+
+      setProducts(newProducts);
+      await AsyncStorage.setItem(
+        '@Marketplace:products',
+        JSON.stringify(newProducts),
+      );
     },
     [products],
   );
 
   const increment = useCallback(
     async id => {
-      const productId = await products.findIndex(
-        mapProduct => mapProduct.id === id,
+      const newProducts = products.map(product =>
+        product.id === id
+          ? { ...product, quantity: product.quantity + 1 }
+          : product,
       );
-      const newProducts = products;
-      newProducts[productId].quantity += 1;
-      setProducts([...newProducts]);
+      setProducts(newProducts);
       await AsyncStorage.setItem(
         '@Marketplace:products',
-        JSON.stringify(products),
+        JSON.stringify(newProducts),
       );
     },
     [products],
@@ -87,18 +84,17 @@ const CartProvider: React.FC = ({ children }) => {
 
   const decrement = useCallback(
     async id => {
-      const productId = await products.findIndex(
-        mapProduct => mapProduct.id === id,
-      );
-      const newProducts = products;
-      newProducts[productId].quantity -= 1;
-      if (newProducts[productId].quantity <= 0) {
-        newProducts.splice(productId, 1);
-      }
-      setProducts([...newProducts]);
+      const newProducts = products
+        .map(product =>
+          product.id === id
+            ? { ...product, quantity: product.quantity - 1 }
+            : product,
+        )
+        .filter(product => product.quantity !== 0);
+      setProducts(newProducts);
       await AsyncStorage.setItem(
         '@Marketplace:products',
-        JSON.stringify(products),
+        JSON.stringify(newProducts),
       );
     },
     [products],
